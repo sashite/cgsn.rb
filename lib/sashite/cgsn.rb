@@ -16,6 +16,7 @@ module Sashite
       in_progress
       checkmate
       stalemate
+      staleturn
       bare_king
       mare_king
       insufficient
@@ -32,6 +33,7 @@ module Sashite
       in_progress
       checkmate
       stalemate
+      staleturn
       bare_king
       mare_king
       insufficient
@@ -54,11 +56,14 @@ module Sashite
     #
     # @example
     #   Sashite::Cgsn.valid?("checkmate")     # => true
+    #   Sashite::Cgsn.valid?("staleturn")     # => true
     #   Sashite::Cgsn.valid?("time_limit")    # => true
     #   Sashite::Cgsn.valid?("invalid")       # => false
     #   Sashite::Cgsn.valid?("Checkmate")     # => false
+    #   Sashite::Cgsn.valid?(:checkmate)      # => true (converts to "checkmate")
     def self.valid?(value)
-      STATUSES.include?(value)
+      status_string = String(value)
+      STATUSES.include?(status_string)
     rescue ::TypeError
       false
     end
@@ -71,6 +76,7 @@ module Sashite
     #
     # @example
     #   Sashite::Cgsn.parse("checkmate")    # => #<Cgsn::Status value="checkmate">
+    #   Sashite::Cgsn.parse("staleturn")    # => #<Cgsn::Status value="staleturn">
     #   Sashite::Cgsn.parse("resignation")  # => #<Cgsn::Status value="resignation">
     def self.parse(value)
       Status.new(value)
@@ -83,9 +89,11 @@ module Sashite
     #
     # @example
     #   Sashite::Cgsn.inferable?("checkmate")     # => true
+    #   Sashite::Cgsn.inferable?("staleturn")     # => true
     #   Sashite::Cgsn.inferable?("resignation")   # => false
     def self.inferable?(status)
-      INFERABLE_STATUSES.include?(status)
+      status_string = String(status)
+      INFERABLE_STATUSES.include?(status_string)
     rescue ::TypeError
       false
     end
@@ -98,8 +106,10 @@ module Sashite
     # @example
     #   Sashite::Cgsn.explicit_only?("resignation")  # => true
     #   Sashite::Cgsn.explicit_only?("checkmate")    # => false
+    #   Sashite::Cgsn.explicit_only?("staleturn")    # => false
     def self.explicit_only?(status)
-      EXPLICIT_ONLY_STATUSES.include?(status)
+      status_string = String(status)
+      EXPLICIT_ONLY_STATUSES.include?(status_string)
     rescue ::TypeError
       false
     end
@@ -110,7 +120,7 @@ module Sashite
     #
     # @example
     #   Sashite::Cgsn.statuses
-    #   # => ["in_progress", "checkmate", "stalemate", ...]
+    #   # => ["in_progress", "checkmate", "stalemate", "staleturn", ...]
     def self.statuses
       STATUSES.dup
     end
@@ -121,7 +131,7 @@ module Sashite
     #
     # @example
     #   Sashite::Cgsn.inferable_statuses
-    #   # => ["in_progress", "checkmate", "stalemate", ...]
+    #   # => ["in_progress", "checkmate", "stalemate", "staleturn", ...]
     def self.inferable_statuses
       INFERABLE_STATUSES.dup
     end
