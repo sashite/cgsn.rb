@@ -13,38 +13,38 @@ module Sashite
   module Cgsn
     # Complete list of all defined CGSN status values
     STATUSES = %w[
-      in_progress
+      stale
       checkmate
       stalemate
-      staleturn
-      bare_king
-      mare_king
+      nomove
+      bareking
+      mareking
       insufficient
       resignation
-      illegal_move
-      time_limit
-      move_limit
+      illegalmove
+      timelimit
+      movelimit
       repetition
       agreement
     ].freeze
 
     # Statuses that can be inferred from position analysis
     INFERABLE_STATUSES = %w[
-      in_progress
+      stale
       checkmate
       stalemate
-      staleturn
-      bare_king
-      mare_king
+      nomove
+      bareking
+      mareking
       insufficient
     ].freeze
 
     # Statuses that require explicit declaration
     EXPLICIT_ONLY_STATUSES = %w[
       resignation
-      illegal_move
-      time_limit
-      move_limit
+      illegalmove
+      timelimit
+      movelimit
       repetition
       agreement
     ].freeze
@@ -56,8 +56,8 @@ module Sashite
     #
     # @example
     #   Sashite::Cgsn.valid?("checkmate")     # => true
-    #   Sashite::Cgsn.valid?("staleturn")     # => true
-    #   Sashite::Cgsn.valid?("time_limit")    # => true
+    #   Sashite::Cgsn.valid?("nomove")     # => true
+    #   Sashite::Cgsn.valid?("timelimit")    # => true
     #   Sashite::Cgsn.valid?("invalid")       # => false
     #   Sashite::Cgsn.valid?("Checkmate")     # => false
     #   Sashite::Cgsn.valid?(:checkmate)      # => true (converts to "checkmate")
@@ -76,7 +76,7 @@ module Sashite
     #
     # @example
     #   Sashite::Cgsn.parse("checkmate")    # => #<Cgsn::Status value="checkmate">
-    #   Sashite::Cgsn.parse("staleturn")    # => #<Cgsn::Status value="staleturn">
+    #   Sashite::Cgsn.parse("nomove")    # => #<Cgsn::Status value="nomove">
     #   Sashite::Cgsn.parse("resignation")  # => #<Cgsn::Status value="resignation">
     def self.parse(value)
       Status.new(value)
@@ -89,7 +89,7 @@ module Sashite
     #
     # @example
     #   Sashite::Cgsn.inferable?("checkmate")     # => true
-    #   Sashite::Cgsn.inferable?("staleturn")     # => true
+    #   Sashite::Cgsn.inferable?("nomove")     # => true
     #   Sashite::Cgsn.inferable?("resignation")   # => false
     def self.inferable?(status)
       status_string = String(status)
@@ -106,7 +106,7 @@ module Sashite
     # @example
     #   Sashite::Cgsn.explicit_only?("resignation")  # => true
     #   Sashite::Cgsn.explicit_only?("checkmate")    # => false
-    #   Sashite::Cgsn.explicit_only?("staleturn")    # => false
+    #   Sashite::Cgsn.explicit_only?("nomove")    # => false
     def self.explicit_only?(status)
       status_string = String(status)
       EXPLICIT_ONLY_STATUSES.include?(status_string)
@@ -120,7 +120,7 @@ module Sashite
     #
     # @example
     #   Sashite::Cgsn.statuses
-    #   # => ["in_progress", "checkmate", "stalemate", "staleturn", ...]
+    #   # => ["stale", "checkmate", "stalemate", "nomove", ...]
     def self.statuses
       STATUSES.dup
     end
@@ -131,7 +131,7 @@ module Sashite
     #
     # @example
     #   Sashite::Cgsn.inferable_statuses
-    #   # => ["in_progress", "checkmate", "stalemate", "staleturn", ...]
+    #   # => ["stale", "checkmate", "stalemate", "nomove", ...]
     def self.inferable_statuses
       INFERABLE_STATUSES.dup
     end
@@ -142,7 +142,7 @@ module Sashite
     #
     # @example
     #   Sashite::Cgsn.explicit_only_statuses
-    #   # => ["resignation", "illegal_move", "time_limit", ...]
+    #   # => ["resignation", "illegalmove", "timelimit", ...]
     def self.explicit_only_statuses
       EXPLICIT_ONLY_STATUSES.dup
     end

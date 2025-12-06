@@ -43,17 +43,17 @@ puts
 run_test("All specification status values are defined") do
   # Status values directly from CGSN Specification v1.0.0
   spec_statuses = %w[
-    in_progress
+    stale
     checkmate
     stalemate
-    staleturn
-    bare_king
-    mare_king
+    nomove
+    bareking
+    mareking
     insufficient
     resignation
-    illegal_move
-    time_limit
-    move_limit
+    illegalmove
+    timelimit
+    movelimit
     repetition
     agreement
   ]
@@ -74,12 +74,12 @@ end
 run_test("Inferable statuses match specification") do
   # Inferable statuses from CGSN Specification v1.0.0
   spec_inferable = %w[
-    in_progress
+    stale
     checkmate
     stalemate
-    staleturn
-    bare_king
-    mare_king
+    nomove
+    bareking
+    mareking
     insufficient
   ]
 
@@ -101,9 +101,9 @@ run_test("Explicit-only statuses match specification") do
   # Explicit-only statuses from CGSN Specification v1.0.0
   spec_explicit_only = %w[
     resignation
-    illegal_move
-    time_limit
-    move_limit
+    illegalmove
+    timelimit
+    movelimit
     repetition
     agreement
   ]
@@ -149,17 +149,17 @@ end
 
 run_test("Valid statuses are properly accepted") do
   valid_statuses = %w[
-    in_progress
+    stale
     checkmate
     stalemate
-    staleturn
-    bare_king
-    mare_king
+    nomove
+    bareking
+    mareking
     insufficient
     resignation
-    illegal_move
-    time_limit
-    move_limit
+    illegalmove
+    timelimit
+    movelimit
     repetition
     agreement
   ]
@@ -228,12 +228,12 @@ end
 
 run_test("Inferable status categorization is accurate") do
   inferable_statuses = %w[
-    in_progress
+    stale
     checkmate
     stalemate
-    staleturn
-    bare_king
-    mare_king
+    nomove
+    bareking
+    mareking
     insufficient
   ]
 
@@ -246,9 +246,9 @@ end
 run_test("Explicit-only status categorization is accurate") do
   explicit_only_statuses = %w[
     resignation
-    illegal_move
-    time_limit
-    move_limit
+    illegalmove
+    timelimit
+    movelimit
     repetition
     agreement
   ]
@@ -291,7 +291,7 @@ end
 # ============================================================================
 
 run_test("Status.new creates correct instances") do
-  test_statuses = %w[checkmate resignation stalemate staleturn time_limit]
+  test_statuses = %w[checkmate resignation stalemate nomove timelimit]
 
   test_statuses.each do |status_value|
     status = Sashite::Cgsn::Status.new(status_value)
@@ -335,7 +335,7 @@ end
 
 run_test("Status#explicit_only? method works correctly") do
   inferable_status = Sashite::Cgsn::Status.new("stalemate")
-  explicit_status = Sashite::Cgsn::Status.new("time_limit")
+  explicit_status = Sashite::Cgsn::Status.new("timelimit")
 
   raise "Stalemate status should not be explicit-only" if inferable_status.explicit_only?
   raise "Stalemate status should be inferable" unless inferable_status.inferable?
@@ -389,8 +389,8 @@ run_test("Module statuses method returns all statuses") do
 
   # Should include all expected statuses
   expected = %w[
-    in_progress checkmate stalemate staleturn bare_king mare_king insufficient
-    resignation illegal_move time_limit move_limit repetition agreement
+    stale checkmate stalemate nomove bareking mareking insufficient
+    resignation illegalmove timelimit movelimit repetition agreement
   ]
 
   expected.each do |status|
@@ -404,7 +404,7 @@ run_test("Module inferable_statuses method returns correct list") do
   raise "inferable_statuses should return an array" unless inferable.is_a?(Array)
   raise "inferable_statuses should return 7 values" unless inferable.size == 7
 
-  expected = %w[in_progress checkmate stalemate staleturn bare_king mare_king insufficient]
+  expected = %w[stale checkmate stalemate nomove bareking mareking insufficient]
 
   expected.each do |status|
     raise "inferable_statuses should include '#{status}'" unless inferable.include?(status)
@@ -417,7 +417,7 @@ run_test("Module explicit_only_statuses method returns correct list") do
   raise "explicit_only_statuses should return an array" unless explicit_only.is_a?(Array)
   raise "explicit_only_statuses should return 6 values" unless explicit_only.size == 6
 
-  expected = %w[resignation illegal_move time_limit move_limit repetition agreement]
+  expected = %w[resignation illegalmove timelimit movelimit repetition agreement]
 
   expected.each do |status|
     raise "explicit_only_statuses should include '#{status}'" unless explicit_only.include?(status)
@@ -488,7 +488,7 @@ end
 # ============================================================================
 
 run_test("Terminal position statuses are inferable") do
-  terminal_statuses = %w[checkmate stalemate staleturn bare_king mare_king insufficient]
+  terminal_statuses = %w[checkmate stalemate nomove bareking mareking insufficient]
 
   terminal_statuses.each do |status|
     raise "Terminal status '#{status}' should be inferable" unless Sashite::Cgsn.inferable?(status)
@@ -496,7 +496,7 @@ run_test("Terminal position statuses are inferable") do
 end
 
 run_test("Player action statuses are explicit-only") do
-  player_action_statuses = %w[resignation agreement illegal_move]
+  player_action_statuses = %w[resignation agreement illegalmove]
 
   player_action_statuses.each do |status|
     raise "Player action '#{status}' should be explicit-only" unless Sashite::Cgsn.explicit_only?(status)
@@ -504,7 +504,7 @@ run_test("Player action statuses are explicit-only") do
 end
 
 run_test("Temporal constraint statuses are explicit-only") do
-  temporal_statuses = %w[time_limit move_limit repetition]
+  temporal_statuses = %w[timelimit movelimit repetition]
 
   temporal_statuses.each do |status|
     raise "Temporal constraint '#{status}' should be explicit-only" unless Sashite::Cgsn.explicit_only?(status)
@@ -544,10 +544,10 @@ run_test("Status objects work across game contexts") do
   raise "Same status across games should be equal" unless checkmate_shogi == checkmate_xiangqi
 
   # Different contexts, same observable fact
-  bare_king_shatranj = Sashite::Cgsn::Status.new("bare_king")
-  bare_king_western = Sashite::Cgsn::Status.new("bare_king")
+  bareking_shatranj = Sashite::Cgsn::Status.new("bareking")
+  bareking_western = Sashite::Cgsn::Status.new("bareking")
 
-  raise "Same observable fact should use same status" unless bare_king_shatranj == bare_king_western
+  raise "Same observable fact should use same status" unless bareking_shatranj == bareking_western
 end
 
 # ============================================================================
@@ -555,7 +555,7 @@ end
 # ============================================================================
 
 run_test("Status with underscores are handled correctly") do
-  multi_word_statuses = %w[bare_king mare_king illegal_move time_limit move_limit in_progress]
+  multi_word_statuses = %w[bareking mareking illegalmove timelimit movelimit stale]
 
   multi_word_statuses.each do |status|
     raise "Multi-word status '#{status}' should be valid" unless Sashite::Cgsn.valid?(status)
@@ -567,7 +567,7 @@ run_test("Status with underscores are handled correctly") do
 end
 
 run_test("Single-word statuses are handled correctly") do
-  single_word_statuses = %w[checkmate stalemate staleturn insufficient resignation repetition agreement]
+  single_word_statuses = %w[checkmate stalemate nomove insufficient resignation repetition agreement]
 
   single_word_statuses.each do |status|
     raise "Single-word status '#{status}' should be valid" unless Sashite::Cgsn.valid?(status)

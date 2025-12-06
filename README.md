@@ -32,9 +32,9 @@ CGSN status values are lowercase strings using underscore separators:
 
 ```ruby
 "checkmate"
-"bare_king"
-"time_limit"
-"in_progress"
+"bareking"
+"timelimit"
+"stale"
 ```
 
 ## API Reference
@@ -110,11 +110,11 @@ Sashite::Cgsn.valid?("invalid")        # => false
 
 # Check inference capability
 Sashite::Cgsn.inferable?("stalemate") # => true
-Sashite::Cgsn.explicit_only?("time_limit") # => true
+Sashite::Cgsn.explicit_only?("timelimit") # => true
 
 # Get all statuses
 Sashite::Cgsn.statuses
-# => ["in_progress", "checkmate", "stalemate", ...]
+# => ["stale", "checkmate", "stalemate", ...]
 ```
 
 ## Properties

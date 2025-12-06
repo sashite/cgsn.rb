@@ -10,9 +10,9 @@ Gem::Specification.new do |spec|
     CGSN (Chess Game Status Notation) provides a rule-agnostic taxonomy of observable game status
     values for abstract strategy board games. This gem implements the CGSN Specification v1.0.0 with
     a minimal Ruby interface featuring immutable status objects and functional programming principles.
-    CGSN defines standardized identifiers for terminal conditions (checkmate, stalemate, bare_king,
-    mare_king, insufficient), player actions (resignation, agreement, illegal_move), and temporal
-    constraints (time_limit, move_limit, repetition), enabling precise and portable status identification
+    CGSN defines standardized identifiers for terminal conditions (checkmate, stalemate, bareking,
+    mareking, insufficient), player actions (resignation, agreement, illegalmove), and temporal
+    constraints (timelimit, movelimit, repetition), enabling precise and portable status identification
     across multiple games and variants. Perfect for game engines, notation systems, and hybrid gaming
     platforms requiring consistent, rule-agnostic game state representation.
   DESC
