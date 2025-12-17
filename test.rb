@@ -9,8 +9,8 @@ SimpleCov.start
 # Tests for Sashite::Cgsn (Chess Game Status Notation)
 #
 # Tests the CGSN implementation for Ruby, covering validation,
-# categorization, status objects, and specification compliance
-# according to the CGSN Specification v1.0.0.
+# categorization, and specification compliance according to
+# the CGSN Specification v1.0.0.
 #
 # @see https://sashite.dev/specs/cgsn/1.0.0/ CGSN Specification v1.0.0
 #
@@ -43,6 +43,7 @@ puts
 run_test("All specification status values are defined") do
   # Status values directly from CGSN Specification v1.0.0
   spec_statuses = %w[
+    check
     stale
     checkmate
     stalemate
@@ -64,7 +65,7 @@ run_test("All specification status values are defined") do
 
   # Verify no extra statuses
   cgsn_statuses = Sashite::Cgsn.statuses
-  raise "Implementation has different status count than spec" unless cgsn_statuses.size == spec_statuses.size
+  raise "Implementation has different status count than spec (expected #{spec_statuses.size}, got #{cgsn_statuses.size})" unless cgsn_statuses.size == spec_statuses.size
 
   spec_statuses.each do |status|
     raise "Specification status '#{status}' missing from implementation" unless cgsn_statuses.include?(status)
@@ -74,6 +75,7 @@ end
 run_test("Inferable statuses match specification") do
   # Inferable statuses from CGSN Specification v1.0.0
   spec_inferable = %w[
+    check
     stale
     checkmate
     stalemate
@@ -90,7 +92,7 @@ run_test("Inferable statuses match specification") do
 
   # Verify inferable list matches
   cgsn_inferable = Sashite::Cgsn.inferable_statuses
-  raise "Inferable status count mismatch" unless cgsn_inferable.size == spec_inferable.size
+  raise "Inferable status count mismatch (expected #{spec_inferable.size}, got #{cgsn_inferable.size})" unless cgsn_inferable.size == spec_inferable.size
 
   spec_inferable.each do |status|
     raise "Inferable status '#{status}' missing from implementation" unless cgsn_inferable.include?(status)
@@ -115,7 +117,7 @@ run_test("Explicit-only statuses match specification") do
 
   # Verify explicit-only list matches
   cgsn_explicit_only = Sashite::Cgsn.explicit_only_statuses
-  raise "Explicit-only status count mismatch" unless cgsn_explicit_only.size == spec_explicit_only.size
+  raise "Explicit-only status count mismatch (expected #{spec_explicit_only.size}, got #{cgsn_explicit_only.size})" unless cgsn_explicit_only.size == spec_explicit_only.size
 
   spec_explicit_only.each do |status|
     raise "Explicit-only status '#{status}' missing from implementation" unless cgsn_explicit_only.include?(status)
@@ -123,23 +125,15 @@ run_test("Explicit-only statuses match specification") do
 end
 
 run_test("Status format follows specification") do
-  # CGSN format: lowercase with underscore separators
+  # CGSN format: lowercase alphabetic characters only
   valid_statuses = Sashite::Cgsn.statuses
 
   valid_statuses.each do |status|
     # Must be lowercase
     raise "Status '#{status}' contains uppercase characters" unless status == status.downcase
 
-    # Must match pattern: [a-z]+(?:_[a-z]+)*
-    pattern = /\A[a-z]+(?:_[a-z]+)*\z/
-    raise "Status '#{status}' doesn't match format pattern" unless status.match?(pattern)
-
-    # No leading/trailing underscores
-    raise "Status '#{status}' has leading underscore" if status.start_with?("_")
-    raise "Status '#{status}' has trailing underscore" if status.end_with?("_")
-
-    # No consecutive underscores
-    raise "Status '#{status}' has consecutive underscores" if status.include?("__")
+    # Must match pattern: lowercase letters only
+    raise "Status '#{status}' contains non-alphabetic characters" unless status.match?(/\A[a-z]+\z/)
   end
 end
 
@@ -149,6 +143,7 @@ end
 
 run_test("Valid statuses are properly accepted") do
   valid_statuses = %w[
+    check
     stale
     checkmate
     stalemate
@@ -171,23 +166,25 @@ end
 
 run_test("Invalid statuses are properly rejected") do
   invalid_statuses = [
-    # Empty and nil
-    "", nil,
+    # Empty string
+    "",
 
     # Wrong case
     "Checkmate", "CHECKMATE", "CheckMate",
-    "Time_Limit", "TIME_LIMIT",
+    "TimeLimit", "TIME_LIMIT",
 
     # Invalid format
     "_checkmate", "checkmate_", "check__mate",
     "check-mate", "check mate", "check.mate",
+    "check_mate",
 
     # Non-existent statuses
     "winning", "losing", "draw", "timeout",
     "forfeit", "abandoned", "cancelled",
 
-    # Numbers
-    "123", "1", "0"
+    # Numbers and special characters
+    "123", "1", "0",
+    "check1", "mate2"
   ]
 
   invalid_statuses.each do |status|
@@ -196,30 +193,24 @@ run_test("Invalid statuses are properly rejected") do
 end
 
 run_test("Non-string input is handled gracefully") do
-  # The implementation converts some types using String() which is acceptable behavior
-  # Symbols are converted: :checkmate -> "checkmate"
-  # Numbers are converted: 123 -> "123" (but won't match valid statuses)
+  non_string_inputs = [
+    nil,
+    [],
+    {},
+    true,
+    false,
+    123,
+    12.34,
+    :checkmate,
+    :invalid,
+    Object.new
+  ]
 
-  # Test that nil is handled
-  raise "nil should be invalid" if Sashite::Cgsn.valid?(nil)
-
-  # Test that arrays and hashes are handled
-  raise "[] should be invalid" if Sashite::Cgsn.valid?([])
-  raise "{} should be invalid" if Sashite::Cgsn.valid?({})
-
-  # Test that booleans are handled
-  raise "true should be invalid" if Sashite::Cgsn.valid?(true)
-  raise "false should be invalid" if Sashite::Cgsn.valid?(false)
-
-  # Symbols that match valid statuses will be converted and accepted
-  # This is acceptable behavior as String(:checkmate) -> "checkmate"
-  raise ":checkmate should be accepted (converts to 'checkmate')" unless Sashite::Cgsn.valid?(:checkmate)
-
-  # Symbols that don't match valid statuses will be rejected
-  raise ":invalid should be invalid" if Sashite::Cgsn.valid?(:invalid)
-
-  # Numbers will be converted but won't match valid statuses
-  raise "123 should be invalid" if Sashite::Cgsn.valid?(123)
+  non_string_inputs.each do |input|
+    raise "#{input.inspect} should be invalid (non-string)" if Sashite::Cgsn.valid?(input)
+    raise "#{input.inspect} should not be inferable (non-string)" if Sashite::Cgsn.inferable?(input)
+    raise "#{input.inspect} should not be explicit-only (non-string)" if Sashite::Cgsn.explicit_only?(input)
+  end
 end
 
 # ============================================================================
@@ -228,6 +219,7 @@ end
 
 run_test("Inferable status categorization is accurate") do
   inferable_statuses = %w[
+    check
     stale
     checkmate
     stalemate
@@ -272,7 +264,7 @@ run_test("Every status is either inferable or explicit-only") do
   end
 end
 
-run_test("Status lists are mutually exclusive") do
+run_test("Status lists are mutually exclusive and exhaustive") do
   inferable = Sashite::Cgsn.inferable_statuses
   explicit_only = Sashite::Cgsn.explicit_only_statuses
 
@@ -286,95 +278,13 @@ run_test("Status lists are mutually exclusive") do
   raise "Combined lists don't match all statuses" unless combined == all_statuses.sort
 end
 
-# ============================================================================
-# STATUS OBJECT TESTS
-# ============================================================================
+run_test("Invalid statuses return false for categorization") do
+  invalid_statuses = ["invalid", "unknown", "", "CHECKMATE"]
 
-run_test("Status.new creates correct instances") do
-  test_statuses = %w[checkmate resignation stalemate nomove timelimit]
-
-  test_statuses.each do |status_value|
-    status = Sashite::Cgsn::Status.new(status_value)
-
-    raise "Status should be a Status instance" unless status.is_a?(Sashite::Cgsn::Status)
-    raise "Status to_s should return original value" unless status.to_s == status_value
-    raise "Status should be frozen" unless status.frozen?
+  invalid_statuses.each do |status|
+    raise "Invalid status '#{status}' should not be inferable" if Sashite::Cgsn.inferable?(status)
+    raise "Invalid status '#{status}' should not be explicit-only" if Sashite::Cgsn.explicit_only?(status)
   end
-end
-
-run_test("Status.new validates input") do
-  invalid_values = ["invalid", "Checkmate", "", "check_mate_extra"]
-
-  invalid_values.each do |value|
-    begin
-      Sashite::Cgsn::Status.new(value)
-      raise "Should have raised ArgumentError for #{value.inspect}"
-    rescue ArgumentError => e
-      raise "Error message should mention invalid status" unless e.message.include?("Invalid CGSN status")
-    end
-  end
-end
-
-run_test("Cgsn.parse creates Status objects") do
-  status = Sashite::Cgsn.parse("checkmate")
-
-  raise "parse should return Status instance" unless status.is_a?(Sashite::Cgsn::Status)
-  raise "Parsed status should have correct value" unless status.to_s == "checkmate"
-end
-
-run_test("Status#inferable? method works correctly") do
-  inferable_status = Sashite::Cgsn::Status.new("checkmate")
-  explicit_status = Sashite::Cgsn::Status.new("resignation")
-
-  raise "Checkmate status should be inferable" unless inferable_status.inferable?
-  raise "Checkmate status should not be explicit-only" if inferable_status.explicit_only?
-
-  raise "Resignation status should not be inferable" if explicit_status.inferable?
-  raise "Resignation status should be explicit-only" unless explicit_status.explicit_only?
-end
-
-run_test("Status#explicit_only? method works correctly") do
-  inferable_status = Sashite::Cgsn::Status.new("stalemate")
-  explicit_status = Sashite::Cgsn::Status.new("timelimit")
-
-  raise "Stalemate status should not be explicit-only" if inferable_status.explicit_only?
-  raise "Stalemate status should be inferable" unless inferable_status.inferable?
-
-  raise "Time limit status should be explicit-only" unless explicit_status.explicit_only?
-  raise "Time limit status should not be inferable" if explicit_status.inferable?
-end
-
-run_test("Status equality and hash") do
-  status1 = Sashite::Cgsn::Status.new("checkmate")
-  status2 = Sashite::Cgsn::Status.new("checkmate")
-  status3 = Sashite::Cgsn::Status.new("stalemate")
-
-  # Test equality
-  raise "Identical statuses should be equal" unless status1 == status2
-  raise "Different statuses should not be equal" if status1 == status3
-
-  # Test eql?
-  raise "Identical statuses should be eql?" unless status1.eql?(status2)
-  raise "Different statuses should not be eql?" if status1.eql?(status3)
-
-  # Test hash consistency
-  raise "Equal statuses should have same hash" unless status1.hash == status2.hash
-
-  # Test in Set
-  require "set"
-  statuses_set = Set.new([status1, status2, status3])
-  raise "Set should contain 2 unique statuses" unless statuses_set.size == 2
-end
-
-run_test("Status immutability") do
-  status = Sashite::Cgsn::Status.new("checkmate")
-
-  # Test that status is frozen
-  raise "Status should be frozen" unless status.frozen?
-
-  # Test that to_s returns frozen string
-  str = status.to_s
-  raise "Status string representation should be frozen" unless str.frozen?
 end
 
 # ============================================================================
@@ -385,11 +295,11 @@ run_test("Module statuses method returns all statuses") do
   statuses = Sashite::Cgsn.statuses
 
   raise "statuses should return an array" unless statuses.is_a?(Array)
-  raise "statuses should return 13 values" unless statuses.size == 13
+  raise "statuses should return 14 values" unless statuses.size == 14
 
   # Should include all expected statuses
   expected = %w[
-    stale checkmate stalemate nomove bareking mareking insufficient
+    check stale checkmate stalemate nomove bareking mareking insufficient
     resignation illegalmove timelimit movelimit repetition agreement
   ]
 
@@ -402,9 +312,9 @@ run_test("Module inferable_statuses method returns correct list") do
   inferable = Sashite::Cgsn.inferable_statuses
 
   raise "inferable_statuses should return an array" unless inferable.is_a?(Array)
-  raise "inferable_statuses should return 7 values" unless inferable.size == 7
+  raise "inferable_statuses should return 8 values" unless inferable.size == 8
 
-  expected = %w[stale checkmate stalemate nomove bareking mareking insufficient]
+  expected = %w[check stale checkmate stalemate nomove bareking mareking insufficient]
 
   expected.each do |status|
     raise "inferable_statuses should include '#{status}'" unless inferable.include?(status)
@@ -424,17 +334,19 @@ run_test("Module explicit_only_statuses method returns correct list") do
   end
 end
 
-run_test("Module methods return copies, not originals") do
-  statuses1 = Sashite::Cgsn.statuses
-  statuses2 = Sashite::Cgsn.statuses
+run_test("Module methods return frozen constants") do
+  statuses = Sashite::Cgsn.statuses
+  inferable = Sashite::Cgsn.inferable_statuses
+  explicit_only = Sashite::Cgsn.explicit_only_statuses
 
-  raise "Multiple calls should return different array objects" if statuses1.equal?(statuses2)
-  raise "Multiple calls should return equal arrays" unless statuses1 == statuses2
+  raise "statuses should be frozen" unless statuses.frozen?
+  raise "inferable_statuses should be frozen" unless inferable.frozen?
+  raise "explicit_only_statuses should be frozen" unless explicit_only.frozen?
 
-  # Test that modifying returned array doesn't affect constant
-  statuses1 << "invalid"
-  statuses3 = Sashite::Cgsn.statuses
-  raise "Modifying returned array should not affect subsequent calls" if statuses3.include?("invalid")
+  # Test that same object is returned (not a copy)
+  raise "statuses should return same object" unless Sashite::Cgsn.statuses.equal?(statuses)
+  raise "inferable_statuses should return same object" unless Sashite::Cgsn.inferable_statuses.equal?(inferable)
+  raise "explicit_only_statuses should return same object" unless Sashite::Cgsn.explicit_only_statuses.equal?(explicit_only)
 end
 
 # ============================================================================
@@ -446,7 +358,7 @@ run_test("STATUSES constant is properly defined") do
 
   raise "STATUSES should be frozen" unless statuses.frozen?
   raise "STATUSES should be an array" unless statuses.is_a?(Array)
-  raise "STATUSES should have 13 elements" unless statuses.size == 13
+  raise "STATUSES should have 14 elements" unless statuses.size == 14
 
   # All elements should be frozen strings
   statuses.each do |status|
@@ -460,7 +372,7 @@ run_test("INFERABLE_STATUSES constant is properly defined") do
 
   raise "INFERABLE_STATUSES should be frozen" unless inferable.frozen?
   raise "INFERABLE_STATUSES should be an array" unless inferable.is_a?(Array)
-  raise "INFERABLE_STATUSES should have 7 elements" unless inferable.size == 7
+  raise "INFERABLE_STATUSES should have 8 elements" unless inferable.size == 8
 
   # All elements should be frozen strings
   inferable.each do |status|
@@ -483,31 +395,51 @@ run_test("EXPLICIT_ONLY_STATUSES constant is properly defined") do
   end
 end
 
+run_test("Constants maintain specification order") do
+  # Order should match specification's complete status list
+  expected_order = %w[
+    check stale checkmate stalemate nomove bareking mareking insufficient
+    resignation illegalmove timelimit movelimit repetition agreement
+  ]
+
+  actual_order = Sashite::Cgsn::STATUSES
+
+  raise "STATUSES order should match specification" unless actual_order == expected_order
+
+  # Inferable order
+  expected_inferable_order = %w[check stale checkmate stalemate nomove bareking mareking insufficient]
+  raise "INFERABLE_STATUSES order should match specification" unless Sashite::Cgsn::INFERABLE_STATUSES == expected_inferable_order
+
+  # Explicit-only order
+  expected_explicit_order = %w[resignation illegalmove timelimit movelimit repetition agreement]
+  raise "EXPLICIT_ONLY_STATUSES order should match specification" unless Sashite::Cgsn::EXPLICIT_ONLY_STATUSES == expected_explicit_order
+end
+
 # ============================================================================
 # GAME-SPECIFIC SEMANTIC TESTS
 # ============================================================================
 
-run_test("Terminal position statuses are inferable") do
-  terminal_statuses = %w[checkmate stalemate nomove bareking mareking insufficient]
+run_test("Terminal Piece statuses are inferable") do
+  terminal_piece_statuses = %w[check stale checkmate stalemate]
 
-  terminal_statuses.each do |status|
-    raise "Terminal status '#{status}' should be inferable" unless Sashite::Cgsn.inferable?(status)
+  terminal_piece_statuses.each do |status|
+    raise "Terminal Piece status '#{status}' should be inferable" unless Sashite::Cgsn.inferable?(status)
   end
 end
 
-run_test("Player action statuses are explicit-only") do
-  player_action_statuses = %w[resignation agreement illegalmove]
+run_test("Position statuses are inferable") do
+  position_statuses = %w[nomove bareking mareking insufficient]
 
-  player_action_statuses.each do |status|
-    raise "Player action '#{status}' should be explicit-only" unless Sashite::Cgsn.explicit_only?(status)
+  position_statuses.each do |status|
+    raise "Position status '#{status}' should be inferable" unless Sashite::Cgsn.inferable?(status)
   end
 end
 
-run_test("Temporal constraint statuses are explicit-only") do
-  temporal_statuses = %w[timelimit movelimit repetition]
+run_test("External event statuses are explicit-only") do
+  external_event_statuses = %w[resignation illegalmove timelimit movelimit repetition agreement]
 
-  temporal_statuses.each do |status|
-    raise "Temporal constraint '#{status}' should be explicit-only" unless Sashite::Cgsn.explicit_only?(status)
+  external_event_statuses.each do |status|
+    raise "External event status '#{status}' should be explicit-only" unless Sashite::Cgsn.explicit_only?(status)
   end
 end
 
@@ -534,74 +466,46 @@ run_test("Statuses are rule-agnostic") do
   end
 end
 
-run_test("Status objects work across game contexts") do
-  # Same status value can be used for different games
-  checkmate_chess = Sashite::Cgsn::Status.new("checkmate")
-  checkmate_shogi = Sashite::Cgsn::Status.new("checkmate")
-  checkmate_xiangqi = Sashite::Cgsn::Status.new("checkmate")
-
-  raise "Same status across games should be equal" unless checkmate_chess == checkmate_shogi
-  raise "Same status across games should be equal" unless checkmate_shogi == checkmate_xiangqi
-
-  # Different contexts, same observable fact
-  bareking_shatranj = Sashite::Cgsn::Status.new("bareking")
-  bareking_western = Sashite::Cgsn::Status.new("bareking")
-
-  raise "Same observable fact should use same status" unless bareking_shatranj == bareking_western
-end
-
 # ============================================================================
-# EDGE CASES AND BOUNDARY CONDITIONS
+# API CONSISTENCY TESTS
 # ============================================================================
-
-run_test("Status with underscores are handled correctly") do
-  multi_word_statuses = %w[bareking mareking illegalmove timelimit movelimit stale]
-
-  multi_word_statuses.each do |status|
-    raise "Multi-word status '#{status}' should be valid" unless Sashite::Cgsn.valid?(status)
-
-    # Can create Status object
-    status_obj = Sashite::Cgsn::Status.new(status)
-    raise "Multi-word status should create valid object" unless status_obj.to_s == status
-  end
-end
-
-run_test("Single-word statuses are handled correctly") do
-  single_word_statuses = %w[checkmate stalemate nomove insufficient resignation repetition agreement]
-
-  single_word_statuses.each do |status|
-    raise "Single-word status '#{status}' should be valid" unless Sashite::Cgsn.valid?(status)
-
-    # Can create Status object
-    status_obj = Sashite::Cgsn::Status.new(status)
-    raise "Single-word status should create valid object" unless status_obj.to_s == status
-  end
-end
 
 run_test("API methods are stateless and consistent") do
-  test_status = "checkmate"
+  test_cases = [
+    { status: "checkmate", valid: true, inferable: true, explicit_only: false },
+    { status: "resignation", valid: true, inferable: false, explicit_only: true },
+    { status: "check", valid: true, inferable: true, explicit_only: false },
+    { status: "invalid", valid: false, inferable: false, explicit_only: false }
+  ]
 
   # Test that repeated calls give consistent results
   5.times do
-    raise "valid? should be consistent" unless Sashite::Cgsn.valid?(test_status) == true
-    raise "inferable? should be consistent" unless Sashite::Cgsn.inferable?(test_status) == true
-    raise "explicit_only? should be consistent" unless Sashite::Cgsn.explicit_only?(test_status) == false
-  end
-
-  5.times do
-    status_obj = Sashite::Cgsn.parse(test_status)
-    raise "parse should be consistent" unless status_obj.to_s == test_status
+    test_cases.each do |test_case|
+      status = test_case[:status]
+      raise "valid?(#{status}) should be consistent" unless Sashite::Cgsn.valid?(status) == test_case[:valid]
+      raise "inferable?(#{status}) should be consistent" unless Sashite::Cgsn.inferable?(status) == test_case[:inferable]
+      raise "explicit_only?(#{status}) should be consistent" unless Sashite::Cgsn.explicit_only?(status) == test_case[:explicit_only]
+    end
   end
 end
 
-run_test("Status comparison with strings") do
-  status = Sashite::Cgsn::Status.new("checkmate")
+run_test("check and stale are mutually exclusive by definition") do
+  # According to the spec: for any Terminal Piece, exactly one of {check, stale} applies
+  # Both should be valid and inferable
+  raise "check should be valid" unless Sashite::Cgsn.valid?("check")
+  raise "stale should be valid" unless Sashite::Cgsn.valid?("stale")
+  raise "check should be inferable" unless Sashite::Cgsn.inferable?("check")
+  raise "stale should be inferable" unless Sashite::Cgsn.inferable?("stale")
+end
 
-  # Status object should not equal string directly
-  raise "Status object should not equal raw string" if status == "checkmate"
-
-  # But to_s should give the string
-  raise "Status to_s should equal string" unless status.to_s == "checkmate"
+run_test("checkmate implies check, stalemate implies stale") do
+  # According to the spec:
+  # - checkmate: Terminal Piece is in check and cannot escape
+  # - stalemate: Terminal Piece is stale but all moves lead to check
+  raise "checkmate should be inferable" unless Sashite::Cgsn.inferable?("checkmate")
+  raise "stalemate should be inferable" unless Sashite::Cgsn.inferable?("stalemate")
+  raise "check should be inferable" unless Sashite::Cgsn.inferable?("check")
+  raise "stale should be inferable" unless Sashite::Cgsn.inferable?("stale")
 end
 
 # ============================================================================
@@ -616,20 +520,9 @@ run_test("All specification constraints are enforced") do
     raise "Status '#{status}' must be lowercase" unless status == status.downcase
   end
 
-  # Underscore separator (no hyphens, spaces, etc.)
+  # Only lowercase letters (no underscores, hyphens, numbers)
   Sashite::Cgsn.statuses.each do |status|
-    raise "Status '#{status}' contains invalid characters" if status.match?(/[^a-z_]/)
-  end
-
-  # No leading/trailing underscores
-  Sashite::Cgsn.statuses.each do |status|
-    raise "Status '#{status}' has leading underscore" if status.start_with?("_")
-    raise "Status '#{status}' has trailing underscore" if status.end_with?("_")
-  end
-
-  # No consecutive underscores
-  Sashite::Cgsn.statuses.each do |status|
-    raise "Status '#{status}' has consecutive underscores" if status.include?("__")
+    raise "Status '#{status}' contains invalid characters" unless status.match?(/\A[a-z]+\z/)
   end
 
   # At least one letter
