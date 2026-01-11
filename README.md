@@ -3,7 +3,7 @@
 [![Version](https://img.shields.io/github/v/tag/sashite/cgsn.rb?label=Version&logo=github)](https://github.com/sashite/cgsn.rb/tags)
 [![Yard documentation](https://img.shields.io/badge/Yard-documentation-blue.svg?logo=github)](https://rubydoc.info/github/sashite/cgsn.rb/main)
 ![Ruby](https://github.com/sashite/cgsn.rb/actions/workflows/main.yml/badge.svg?branch=main)
-[![License](https://img.shields.io/github/license/sashite/cgsn.rb?label=License&logo=github)](https://github.com/sashite/cgsn.rb/raw/main/LICENSE.md)
+[![License](https://img.shields.io/github/license/sashite/cgsn.rb?label=License&logo=github)](https://github.com/sashite/cgsn.rb/raw/main/LICENSE)
 
 > **CGSN** (Chess Game Status Notation) reference implementation for Ruby.
 
@@ -111,18 +111,12 @@ CGSN records **observable conditions** without defining outcomes.
 
 Example: `stalemate` is commonly a draw in Western chess, but other Rule Systems may treat it differently. CGSN only records the underlying condition.
 
-## Related specifications
+## Related Specifications
 
-* CGSN Specification — [https://sashite.dev/specs/cgsn/1.0.0/](https://sashite.dev/specs/cgsn/1.0.0/)
-* CGSN Examples — [https://sashite.dev/specs/cgsn/1.0.0/examples/](https://sashite.dev/specs/cgsn/1.0.0/examples/)
-* Sashité Game Protocol — [https://sashite.dev/game-protocol/](https://sashite.dev/game-protocol/)
-* Sashité Glossary — [https://sashite.dev/glossary/](https://sashite.dev/glossary/)
-* PCN — [https://sashite.dev/specs/pcn/](https://sashite.dev/specs/pcn/)
+- [Game Protocol](https://sashite.dev/game-protocol/) — Conceptual foundation
+- [CGSN Specification](https://sashite.dev/specs/cgsn/1.0.0/) — Official specification
+- [CGSN Examples](https://sashite.dev/specs/cgsn/1.0.0/examples/) — Usage examples
 
 ## License
 
-Available as open source under the [MIT License](https://opensource.org/licenses/MIT).
-
-## About
-
-Maintained by [Sashité](https://sashite.com/) — promoting chess variants and sharing the beauty of board game cultures.
+Available as open source under the [Apache License 2.0](https://opensource.org/licenses/Apache-2.0).
