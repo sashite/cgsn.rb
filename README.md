@@ -1,27 +1,20 @@
-# Sashite::Cgsn
+# cgsn.rb
 
 [![Version](https://img.shields.io/github/v/tag/sashite/cgsn.rb?label=Version&logo=github)](https://github.com/sashite/cgsn.rb/tags)
 [![Yard documentation](https://img.shields.io/badge/Yard-documentation-blue.svg?logo=github)](https://rubydoc.info/github/sashite/cgsn.rb/main)
-![Ruby](https://github.com/sashite/cgsn.rb/actions/workflows/main.yml/badge.svg?branch=main)
-[![License](https://img.shields.io/github/license/sashite/cgsn.rb?label=License&logo=github)](https://github.com/sashite/cgsn.rb/raw/main/LICENSE)
+[![CI](https://github.com/sashite/cgsn.rb/actions/workflows/ruby.yml/badge.svg?branch=main)](https://github.com/sashite/cgsn.rb/actions)
+[![License](https://img.shields.io/github/license/sashite/cgsn.rb)](https://github.com/sashite/cgsn.rb/blob/main/LICENSE)
 
-> **CGSN** (Chess Game Status Notation) reference implementation for Ruby.
+> **CGSN** (Chess Game Status Notation) implementation for Ruby.
 
-## What is CGSN?
+## Overview
 
-CGSN (Chess Game Status Notation) defines a **finite, standardized list** of **rule-agnostic** status identifiers describing **observable aspects of a game state** for two-player, turn-based abstract strategy board games.
-
-CGSN focuses on *what can be observed or verified*, not on *how a status impacts the result* (win/loss/draw), which remains Rule System– or competition-defined.
-
-This library implements the **CGSN Specification v1.0.0**:
-- https://sashite.dev/specs/cgsn/1.0.0/
-- Examples: https://sashite.dev/specs/cgsn/1.0.0/examples/
+This library implements the [CGSN Specification v1.0.0](https://sashite.dev/specs/cgsn/1.0.0/).
 
 ## Installation
 
-Add to your Gemfile:
-
 ```ruby
+# In your Gemfile
 gem "sashite-cgsn"
 ```
 
@@ -31,85 +24,152 @@ Or install manually:
 gem install sashite-cgsn
 ```
 
-## Status identifiers
-
-CGSN status values are **lowercase string identifiers** (e.g. `checkmate`, `repetition`).
-
-CGSN v1.0.0 standard statuses are:
-
-### Terminal Piece statuses (position-inferable)
-
-These describe the condition of a **specific Terminal Piece** of the active player's side relative to opponent capture threats.
-They are **position-inferable** given the current Position + Rule System.
-
-| Status      | Description                                                                                                         |
-| ----------- | ------------------------------------------------------------------------------------------------------------------- |
-| `check`     | A specific Terminal Piece of the active player's side can be captured by an opponent's Pseudo-Legal Move            |
-| `stale`     | A specific Terminal Piece of the active player's side cannot be captured by any opponent's Pseudo-Legal Move        |
-| `checkmate` | That same Terminal Piece is in `check`, and every Pseudo-Legal Move by the active player still leaves it in `check` |
-| `stalemate` | That same Terminal Piece is `stale`, but every Pseudo-Legal Move by the active player would put it in `check`       |
-
-> Note: In CGSN's model, `check`/`stale` are evaluated **per Terminal Piece** (some games may have multiple Terminal Pieces per side).
-
-### Position statuses (position-inferable)
-
-These describe global properties of the Position (not tied to a single piece).
-
-| Status         | Description                                                                                                             |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `nomove`       | No Pseudo-Legal Moves exist for the active player                                                                       |
-| `bareking`     | At least one side has **exactly one piece on the Board**, and that piece is a Terminal Piece (Hands are not considered) |
-| `mareking`     | At least one side has **no Terminal Pieces on the Board**                                                               |
-| `insufficient` | Under the Rule System's insufficiency rules, neither side can force a decisive outcome with the available material      |
-
-### External event statuses (explicit-only)
-
-These cannot be derived from Position + Rule System alone. They require extra context (history, clocks, declarations, etc.) and must be explicitly recorded by the surrounding notation when they occur.
-
-| Status        | Description                                                                                 |
-| ------------- | ------------------------------------------------------------------------------------------- |
-| `resignation` | A player explicitly resigned                                                                |
-| `illegalmove` | A played move is recognized as not being a Legal Move under the Game Protocol + Rule System |
-| `timelimit`   | A player exceeded the time control limit                                                    |
-| `movelimit`   | The match reached a move-count limit defined by rules or competition regulations            |
-| `repetition`  | A position repeated according to the Rule System's repetition policy                        |
-| `agreement`   | Both players mutually agreed to end the match                                               |
-
 ## Usage
+
+### Parsing (String → Symbol)
+
+Convert a CGSN string into a symbol.
 
 ```ruby
 require "sashite/cgsn"
 
-# Validation (CGSN v1.0.0 standard vocabulary)
-Sashite::Cgsn.valid?("checkmate")      # => true
-Sashite::Cgsn.valid?("resignation")    # => true
-Sashite::Cgsn.valid?("invalid")        # => false
-Sashite::Cgsn.valid?("")               # => false
+# Standard parsing (raises on error)
+Sashite::Cgsn.parse("checkmate")    # => :checkmate
+Sashite::Cgsn.parse("resignation")  # => :resignation
 
-# Classification
-Sashite::Cgsn.inferable?("checkmate")        # => true
-Sashite::Cgsn.inferable?("repetition")       # => false
-
-Sashite::Cgsn.explicit_only?("repetition")   # => true
-Sashite::Cgsn.explicit_only?("stalemate")    # => false
-
-# Lists
-Sashite::Cgsn.statuses
-# => ["check", "stale", "checkmate", "stalemate", "nomove", "bareking", "mareking", "insufficient",
-#     "resignation", "illegalmove", "timelimit", "movelimit", "repetition", "agreement"]
-
-Sashite::Cgsn.inferable_statuses
-# => ["check", "stale", "checkmate", "stalemate", "nomove", "bareking", "mareking", "insufficient"]
-
-Sashite::Cgsn.explicit_only_statuses
-# => ["resignation", "illegalmove", "timelimit", "movelimit", "repetition", "agreement"]
+# Invalid input raises ArgumentError
+Sashite::Cgsn.parse("invalid")  # => raises ArgumentError
+Sashite::Cgsn.parse("")         # => raises ArgumentError
 ```
 
-## Rule-agnostic design
+### Validation
 
-CGSN records **observable conditions** without defining outcomes.
+```ruby
+# Boolean check
+Sashite::Cgsn.valid?("checkmate")    # => true
+Sashite::Cgsn.valid?("resignation")  # => true
+Sashite::Cgsn.valid?("invalid")      # => false
+Sashite::Cgsn.valid?("")             # => false
+Sashite::Cgsn.valid?(nil)            # => false
+```
 
-Example: `stalemate` is commonly a draw in Western chess, but other Rule Systems may treat it differently. CGSN only records the underlying condition.
+### Classification
+
+```ruby
+# Position-inferable: can be determined from Position + Rule System
+Sashite::Cgsn.inferable?(:checkmate)   # => true
+Sashite::Cgsn.inferable?(:stalemate)   # => true
+Sashite::Cgsn.inferable?(:repetition)  # => false
+
+# Explicit-only: requires external context (history, clocks, declarations)
+Sashite::Cgsn.explicit_only?(:resignation)  # => true
+Sashite::Cgsn.explicit_only?(:timelimit)    # => true
+Sashite::Cgsn.explicit_only?(:checkmate)    # => false
+```
+
+### Accessing Statuses
+
+```ruby
+# All statuses (unordered)
+Sashite::Cgsn.statuses
+# => #<Set: {:check, :stale, :checkmate, :stalemate, :nomove, :bareking,
+#            :mareking, :insufficient, :resignation, :illegalmove, :timelimit,
+#            :movelimit, :repetition, :agreement}>
+
+# Position-inferable statuses
+Sashite::Cgsn.inferable_statuses
+# => #<Set: {:check, :stale, :checkmate, :stalemate, :nomove, :bareking,
+#            :mareking, :insufficient}>
+
+# Explicit-only statuses
+Sashite::Cgsn.explicit_only_statuses
+# => #<Set: {:resignation, :illegalmove, :timelimit, :movelimit, :repetition,
+#            :agreement}>
+```
+
+## API Reference
+
+### Constants
+
+```ruby
+Sashite::Cgsn::STATUSES               # Set of all 14 status symbols
+Sashite::Cgsn::INFERABLE_STATUSES     # Set of 8 position-inferable symbols
+Sashite::Cgsn::EXPLICIT_ONLY_STATUSES # Set of 6 explicit-only symbols
+```
+
+### Parsing
+
+```ruby
+# Parses a CGSN string into a symbol.
+# Raises ArgumentError if the string is not valid.
+#
+# @param input [String] CGSN status string
+# @return [Symbol]
+# @raise [ArgumentError] if invalid
+def Sashite::Cgsn.parse(input)
+```
+
+### Validation
+
+```ruby
+# Reports whether string is a valid CGSN status identifier.
+#
+# @param input [String] The value to check
+# @return [Boolean]
+def Sashite::Cgsn.valid?(input)
+```
+
+### Classification
+
+```ruby
+# Reports whether status is position-inferable.
+#
+# @param status [Symbol] The status to check
+# @return [Boolean]
+def Sashite::Cgsn.inferable?(status)
+
+# Reports whether status is explicit-only.
+#
+# @param status [Symbol] The status to check
+# @return [Boolean]
+def Sashite::Cgsn.explicit_only?(status)
+```
+
+### Listing
+
+```ruby
+# Returns all CGSN v1.0.0 status symbols.
+#
+# @return [Set<Symbol>]
+def Sashite::Cgsn.statuses
+
+# Returns position-inferable status symbols.
+#
+# @return [Set<Symbol>]
+def Sashite::Cgsn.inferable_statuses
+
+# Returns explicit-only status symbols.
+#
+# @return [Set<Symbol>]
+def Sashite::Cgsn.explicit_only_statuses
+```
+
+### Errors
+
+All parsing errors raise `ArgumentError` with descriptive messages:
+
+| Message | Cause |
+|---------|-------|
+| `"invalid status"` | Input is not a valid CGSN status |
+
+## Design Principles
+
+- **Symbol-based**: Statuses represented as Ruby symbols for identity semantics
+- **Set-based**: Unordered collections reflect vocabulary nature
+- **Strict validation**: Only standard v1.0.0 vocabulary accepted
+- **Rule-agnostic**: Records conditions without defining outcomes
+- **Immutable constants**: All sets are frozen
+- **No dependencies**: Pure Ruby standard library only
 
 ## Related Specifications
 

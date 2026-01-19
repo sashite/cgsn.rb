@@ -1,180 +1,168 @@
 # frozen_string_literal: true
 
+require "set"
+
 module Sashite
-  # CGSN (Chess Game Status Notation) vocabulary for Ruby.
+  # CGSN (Chess Game Status Notation) implementation for Ruby.
   #
-  # This module exposes the CGSN v1.0.0 standard status identifiers (as strings)
-  # and helpers to validate / classify them.
+  # Provides a rule-agnostic vocabulary for identifying game statuses
+  # in abstract strategy board games with symbol-based identifiers.
   #
-  # CGSN statuses are categorized as either:
-  #
-  # - *position-inferable*: can be determined from Position + Rule System,
-  # - *explicit-only*: require extra context (history, clocks, declarations, etc.).
-  #
-  # This implementation is intentionally *rule-agnostic* and *does not compute*
-  # game statuses. It only provides a stable vocabulary and membership checks.
-  #
-  # Specification:
-  # https://sashite.dev/specs/cgsn/1.0.0/
-  #
-  # @note Some statuses (e.g. +check+, +stalemate+) are defined *per Terminal Piece* in the spec.
-  #   Associating such a status with a specific piece belongs to the surrounding protocol / notation.
-  #
-  # @note While the spec allows extensions, this module validates only the *standard v1.0.0 vocabulary*.
+  # @example Parsing
+  #   Sashite::Cgsn.parse("checkmate")  # => :checkmate
   #
   # @example Validation
   #   Sashite::Cgsn.valid?("checkmate")  # => true
   #   Sashite::Cgsn.valid?("invalid")    # => false
   #
   # @example Classification
-  #   Sashite::Cgsn.inferable?("checkmate")       # => true
-  #   Sashite::Cgsn.explicit_only?("resignation") # => true
+  #   Sashite::Cgsn.inferable?(:checkmate)       # => true
+  #   Sashite::Cgsn.explicit_only?(:resignation) # => true
   #
-  # @see https://sashite.dev/specs/cgsn/1.0.0/ CGSN Specification
-  # @see https://sashite.dev/game-protocol/ Game Protocol
-  # @see https://sashite.dev/glossary/ Glossary
+  # @see https://sashite.dev/specs/cgsn/1.0.0/
   module Cgsn
-    # Position-inferable status identifiers.
+    # Position-inferable status symbols.
     #
-    # "Position-inferable" means: given the current Position and the Rule System,
-    # the status can be determined without external context (history, clocks, declarations, etc.).
+    # These can be determined from Position + Rule System alone.
     #
-    # @return [Array<String>] frozen array of inferable status identifiers
-    INFERABLE_STATUSES = %w[
-      check
-      stale
-      checkmate
-      stalemate
-      nomove
-      bareking
-      mareking
-      insufficient
+    # @return [Set<Symbol>] frozen set of inferable status symbols
+    INFERABLE_STATUSES = Set[
+      :check,
+      :stale,
+      :checkmate,
+      :stalemate,
+      :nomove,
+      :bareking,
+      :mareking,
+      :insufficient
     ].freeze
 
-    # Explicit-only status identifiers.
+    # Explicit-only status symbols.
     #
-    # "Explicit-only" means: the status cannot be derived from Position + Rule System alone
-    # because it requires external context (history, clocks, declarations, etc.).
+    # These require external context (history, clocks, declarations).
     #
-    # @return [Array<String>] frozen array of explicit-only status identifiers
-    EXPLICIT_ONLY_STATUSES = %w[
-      resignation
-      illegalmove
-      timelimit
-      movelimit
-      repetition
-      agreement
+    # @return [Set<Symbol>] frozen set of explicit-only status symbols
+    EXPLICIT_ONLY_STATUSES = Set[
+      :resignation,
+      :illegalmove,
+      :timelimit,
+      :movelimit,
+      :repetition,
+      :agreement
     ].freeze
 
-    # All CGSN v1.0.0 status identifiers.
+    # All CGSN v1.0.0 status symbols.
     #
-    # @return [Array<String>] frozen array of all status identifiers
-    STATUSES = (INFERABLE_STATUSES + EXPLICIT_ONLY_STATUSES).freeze
+    # @return [Set<Symbol>] frozen set of all status symbols
+    STATUSES = (INFERABLE_STATUSES | EXPLICIT_ONLY_STATUSES).freeze
 
-    # Fast membership lookup sets (private implementation detail).
-    INFERABLE_SET = INFERABLE_STATUSES.to_set.freeze
-    EXPLICIT_ONLY_SET = EXPLICIT_ONLY_STATUSES.to_set.freeze
-    STATUS_SET = STATUSES.to_set.freeze
+    # Valid status strings for parsing (private implementation detail).
+    VALID_STRINGS = STATUSES.map(&:to_s).to_set.freeze
+    private_constant :VALID_STRINGS
 
-    private_constant :INFERABLE_SET, :EXPLICIT_ONLY_SET, :STATUS_SET
-
-    # Returns all CGSN v1.0.0 status identifiers.
+    # Parses a CGSN string into a symbol.
     #
-    # The returned array has a stable order.
+    # @param input [String] The CGSN status string to parse
+    # @return [Symbol] The corresponding status symbol
+    # @raise [ArgumentError] If the input is not a valid CGSN status
     #
-    # @return [Array<String>] all status identifiers
+    # @example
+    #   Sashite::Cgsn.parse("checkmate")    # => :checkmate
+    #   Sashite::Cgsn.parse("resignation")  # => :resignation
+    #
+    # @example Invalid input
+    #   Sashite::Cgsn.parse("invalid")  # => raises ArgumentError
+    #   Sashite::Cgsn.parse("")         # => raises ArgumentError
+    def self.parse(input)
+      raise ::ArgumentError, "invalid status" unless valid?(input)
+
+      :"#{input}"
+    end
+
+    # Reports whether the input is a valid CGSN status string.
+    #
+    # @param input [Object] The value to check
+    # @return [Boolean] true if valid, false otherwise
+    #
+    # @example
+    #   Sashite::Cgsn.valid?("checkmate")    # => true
+    #   Sashite::Cgsn.valid?("resignation")  # => true
+    #   Sashite::Cgsn.valid?("invalid")      # => false
+    #   Sashite::Cgsn.valid?("")             # => false
+    #   Sashite::Cgsn.valid?(nil)            # => false
+    def self.valid?(input)
+      return false unless ::String === input
+
+      VALID_STRINGS.include?(input)
+    end
+
+    # Reports whether the status is position-inferable.
+    #
+    # Position-inferable statuses can be determined from Position + Rule System
+    # without external context (history, clocks, declarations).
+    #
+    # @param status [Symbol] The status to check
+    # @return [Boolean] true if position-inferable, false otherwise
+    #
+    # @example
+    #   Sashite::Cgsn.inferable?(:checkmate)   # => true
+    #   Sashite::Cgsn.inferable?(:stalemate)   # => true
+    #   Sashite::Cgsn.inferable?(:repetition)  # => false
+    def self.inferable?(status)
+      return false unless ::Symbol === status
+
+      INFERABLE_STATUSES.include?(status)
+    end
+
+    # Reports whether the status is explicit-only.
+    #
+    # Explicit-only statuses require external context (history, clocks,
+    # declarations) and cannot be derived from Position + Rule System alone.
+    #
+    # @param status [Symbol] The status to check
+    # @return [Boolean] true if explicit-only, false otherwise
+    #
+    # @example
+    #   Sashite::Cgsn.explicit_only?(:resignation)  # => true
+    #   Sashite::Cgsn.explicit_only?(:timelimit)    # => true
+    #   Sashite::Cgsn.explicit_only?(:checkmate)    # => false
+    def self.explicit_only?(status)
+      return false unless ::Symbol === status
+
+      EXPLICIT_ONLY_STATUSES.include?(status)
+    end
+
+    # Returns all CGSN v1.0.0 status symbols.
+    #
+    # @return [Set<Symbol>] frozen set of all status symbols
     #
     # @example
     #   Sashite::Cgsn.statuses
-    #   # => ["check", "stale", "checkmate", "stalemate", "nomove", "bareking", "mareking", "insufficient",
-    #   #     "resignation", "illegalmove", "timelimit", "movelimit", "repetition", "agreement"]
+    #   # => #<Set: {:check, :stale, :checkmate, ...}>
     def self.statuses
       STATUSES
     end
 
-    # Returns all position-inferable CGSN v1.0.0 status identifiers.
+    # Returns position-inferable status symbols.
     #
-    # "Position-inferable" means: given the current Position and the Rule System,
-    # the status can be determined without external context (history, clocks, declarations, etc.).
-    #
-    # @return [Array<String>] inferable status identifiers
+    # @return [Set<Symbol>] frozen set of inferable status symbols
     #
     # @example
     #   Sashite::Cgsn.inferable_statuses
-    #   # => ["check", "stale", "checkmate", "stalemate", "nomove", "bareking", "mareking", "insufficient"]
+    #   # => #<Set: {:check, :stale, :checkmate, :stalemate, ...}>
     def self.inferable_statuses
       INFERABLE_STATUSES
     end
 
-    # Returns all explicit-only CGSN v1.0.0 status identifiers.
+    # Returns explicit-only status symbols.
     #
-    # "Explicit-only" means: the status cannot be derived from Position + Rule System alone
-    # because it requires external context (history, clocks, declarations, etc.).
-    #
-    # @return [Array<String>] explicit-only status identifiers
+    # @return [Set<Symbol>] frozen set of explicit-only status symbols
     #
     # @example
     #   Sashite::Cgsn.explicit_only_statuses
-    #   # => ["resignation", "illegalmove", "timelimit", "movelimit", "repetition", "agreement"]
+    #   # => #<Set: {:resignation, :illegalmove, :timelimit, ...}>
     def self.explicit_only_statuses
       EXPLICIT_ONLY_STATUSES
-    end
-
-    # Checks whether the given value is a standard CGSN v1.0.0 status identifier.
-    #
-    # This method is intentionally strict: it validates membership in the official
-    # CGSN v1.0.0 vocabulary. It does *not* validate or accept non-standard extensions.
-    #
-    # @param status [Object] the value to check
-    # @return [Boolean] true if the value is a valid CGSN status identifier
-    #
-    # @example
-    #   Sashite::Cgsn.valid?("checkmate")   # => true
-    #   Sashite::Cgsn.valid?("resignation") # => true
-    #   Sashite::Cgsn.valid?("invalid")     # => false
-    #   Sashite::Cgsn.valid?("")            # => false
-    #   Sashite::Cgsn.valid?(nil)           # => false
-    #   Sashite::Cgsn.valid?(123)           # => false
-    def self.valid?(status)
-      return false unless status.is_a?(::String)
-
-      STATUS_SET.include?(status)
-    end
-
-    # Checks whether the given status is position-inferable in CGSN v1.0.0.
-    #
-    # @param status [Object] the value to check
-    # @return [Boolean] true if the status is position-inferable, false otherwise
-    #
-    # @note Returns false for non-String inputs and unknown identifiers.
-    #
-    # @example
-    #   Sashite::Cgsn.inferable?("checkmate")   # => true
-    #   Sashite::Cgsn.inferable?("stalemate")   # => true
-    #   Sashite::Cgsn.inferable?("repetition")  # => false
-    #   Sashite::Cgsn.inferable?("invalid")     # => false
-    def self.inferable?(status)
-      return false unless status.is_a?(::String)
-
-      INFERABLE_SET.include?(status)
-    end
-
-    # Checks whether the given status is explicit-only in CGSN v1.0.0.
-    #
-    # @param status [Object] the value to check
-    # @return [Boolean] true if the status is explicit-only, false otherwise
-    #
-    # @note Returns false for non-String inputs and unknown identifiers.
-    #
-    # @example
-    #   Sashite::Cgsn.explicit_only?("resignation") # => true
-    #   Sashite::Cgsn.explicit_only?("timelimit")   # => true
-    #   Sashite::Cgsn.explicit_only?("checkmate")   # => false
-    #   Sashite::Cgsn.explicit_only?("invalid")     # => false
-    def self.explicit_only?(status)
-      return false unless status.is_a?(::String)
-
-      EXPLICIT_ONLY_SET.include?(status)
     end
   end
 end
